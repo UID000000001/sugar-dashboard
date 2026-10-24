@@ -1,0 +1,11 @@
+{
+  "name": "sugar-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A glassmorphism personal dashboard with dark, light and system themes, local custom wallpapers, image palette extraction and rotation, inspired by nozoki.soki.moe",
+  "scripts": {
+    "start": "node serve.mjs",
+    "dev": "node serve.mjs"
+  }
+}

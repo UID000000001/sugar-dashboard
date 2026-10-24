@@ -1,0 +1,74 @@
+name: Deploy dashboard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [battery, codex]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build encrypted live data
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LIVE_DATA_PASSPHRASE: ${{ secrets.LIVE_DATA_PASSPHRASE }}
+        run: node scripts/live-data.mjs
+
+      - name: Persist encrypted device / Codex state
+        run: |
+          if [ ! -f live/state.enc.json ]; then
+            echo "No state file yet."
+            exit 0
+          fi
+          if [ -z "$(git status --porcelain -- live/state.enc.json)" ]; then
+            echo "State unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add live/state.enc.json
+          git commit -m "chore: update encrypted live state [skip ci]"
+          git push
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp -r index.html assets css js _site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

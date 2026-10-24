@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN" id="top" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Soki Sugar Life · Dashboard</title>
+  <meta name="description" content="一个轻盈的玻璃质感个人仪表盘，支持深色 / 浅色主题、自定义背景与图片取色：实时时钟、下班倒计时、DeepSeek 余额、设备电量、Codex 额度与持仓行情。">
+  <meta name="theme-color" id="themeColor" content="#0b0813">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // 在首次绘制前决定主题，避免深色 / 浅色闪烁。
+    (function () {
+      try {
+        var saved = JSON.parse(localStorage.getItem("sugar-dashboard:settings:v1") || "{}");
+        var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+        var mode = saved.theme;
+        var resolved = mode === "light" || mode === "dark"
+          ? mode
+          : mode === "auto"
+            ? (prefersLight ? "light" : "dark")
+            : "dark";
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+        var meta = document.getElementById("themeColor");
+        if (meta) meta.setAttribute("content", resolved === "light" ? "#fbf7ff" : "#0b0813");
+      } catch (error) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <div class="wallpaper" id="wallpaper" aria-hidden="true">
+    <img class="wallpaper-img" id="wallpaperA" alt="" decoding="async">
+    <img class="wallpaper-img" id="wallpaperB" alt="" decoding="async">
+    <div class="wallpaper-overlay"></div>
+  </div>
+
+  <!-- 隐藏图标库 -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-settings" viewBox="0 0 24 24">
+      <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M19.4 13.4a7.9 7.9 0 0 0 0-2.8l2-1.5-2-3.4-2.3 1a8 8 0 0 0-2.4-1.4L14.4 3h-4l-.3 2.3a8 8 0 0 0-2.4 1.4l-2.3-1-2 3.4 2 1.5a7.9 7.9 0 0 0 0 2.8l-2 1.5 2 3.4 2.3-1a8 8 0 0 0 2.4 1.4l.3 2.3h4l.3-2.3a8 8 0 0 0 2.4-1.4l2.3 1 2-3.4-2-1.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24">
+      <path d="M20.2 14.3A8.3 8.3 0 0 1 9.7 3.8a8.4 8.4 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-image" viewBox="0 0 24 24">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="8.5" cy="9.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M5.5 17l4.4-4.8 3.2 3.5 2.6-2.5 3.2 3.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24">
+      <path d="M8 16L16 8M9 8h7v7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24">
+      <rect x="7" y="3" width="10" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M10.5 5.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-tablet" viewBox="0 0 24 24">
+      <rect x="4.5" y="3.5" width="15" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M10 18h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-watch" viewBox="0 0 24 24">
+      <rect x="6.5" y="6.5" width="11" height="11" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9 6.5V3.5h6v3M9 17.5v3h6v-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-blog" viewBox="0 0 24 24">
+      <path d="M4.5 5.5h15v13h-15z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 9h8M8 12.5h8M8 16h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-github" viewBox="0 0 24 24">
+      <path d="M12 3.2a9 9 0 0 0-2.85 17.54c.45.08.62-.2.62-.44v-1.7c-2.5.54-3.03-1.06-3.03-1.06-.41-1.04-1-1.32-1-1.32-.82-.56.06-.55.06-.55.9.07 1.38.93 1.38.93.8 1.38 2.11.98 2.63.75.08-.58.31-.98.57-1.2-2-.23-4.1-1-4.1-4.46 0-.99.35-1.79.93-2.42-.1-.23-.4-1.15.09-2.4 0 0 .75-.24 2.47.92a8.6 8.6 0 0 1 4.5 0c1.72-1.16 2.47-.92 2.47-.92.49 1.25.18 2.17.09 2.4.58.63.93 1.43.93 2.42 0 3.47-2.11 4.22-4.12 4.45.32.28.61.83.61 1.67v2.48c0 .24.16.53.62.44A9 9 0 0 0 12 3.2Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-home" viewBox="0 0 24 24">
+      <path d="M4 10.5 12 4l8 6.5V20H4v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M9.5 20v-5.5h5V20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-user" viewBox="0 0 24 24">
+      <circle cx="12" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M5 20c.7-3.4 3.4-5.3 7-5.3s6.3 1.9 7 5.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24">
+      <path d="M4 19h16M6 15l4-5 4 3 5-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24">
+      <path d="M13 3 6 13h5l-1 8 7-10h-5l1-8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24">
+      <path d="M12 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2 2-5.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+
+  <div class="aurora" aria-hidden="true">
+    <span class="aurora-a"></span>
+    <span class="aurora-b"></span>
+    <span class="aurora-c"></span>
+    <span class="aurora-d"></span>
+  </div>
+  <div class="stars" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="easter" id="easter" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="回到顶部">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="24" height="24">
+            <defs>
+              <linearGradient id="brand-g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#ffb7d5"/>
+                <stop offset="1" stop-color="#bda7ff"/>
+              </linearGradient>
+            </defs>
+            <path d="M16 3.5l3 8.2 8.2 3-8.2 3-3 8.2-3-8.2-8.2-3 8.2-3 3-8.2Z" fill="url(#brand-g)"/>
+            <circle cx="24.5" cy="24" r="2.4" fill="#ffd08a"/>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong id="brandName">Soki Sugar Life</strong>
+          <span class="brand-sub" id="brandSub">Sugar Life / Dashboard</span>
+        </span>
+      </a>
+
+      <div class="service-pill" id="servicePill" data-state="checking" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="service-label" id="serviceLabel">CHECKING</span>
+        <span class="service-sub" id="serviceSub">正在检查服务…</span>
+      </div>
+
+      <div class="topbar-right">
+        <div class="clock">
+          <time class="clock-time" id="clockTime" datetime="">00:00:00</time>
+          <span class="clock-meta"><span id="clockDate">正在校准时间</span><span class="dot-sep" aria-hidden="true">·</span><span class="clock-theme">水光</span></span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn theme-btn" id="themeBtn" type="button" aria-label="切换到浅色模式" title="切换到浅色模式">
+            <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+            <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg>
+          </button>
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="打开我的仪表盘设置" aria-haspopup="dialog" aria-controls="settingsDrawer">
+            <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="bento" id="main">
+      <!-- DeepSeek -->
+      <article class="card card--deepseek" data-reveal style="--i:0" aria-labelledby="deepseekTitle">
+        <header class="card-head">
+          <div class="card-id">
+            <span class="avatar"><img src="assets/avatar-deepseek.svg" alt="" width="46" height="46"></span>
+            <div class="card-title">
+              <p class="eyebrow">API Balance</p>
+              <h2 id="deepseekTitle">DeepSeek</h2>
+            </div>
+          </div>
+          <span class="chip" id="dsChip">连接中</span>
+        </header>
+
+        <div class="balance">
+          <span class="currency" aria-hidden="true">¥</span>
+          <span class="balance-amount" id="dsBalance">—</span>
+          <span class="balance-label">账户余额</span>
+        </div>
+
+        <dl class="stat-grid">
+          <div>
+            <dt>充值余额</dt>
+            <dd id="dsRecharge">—</dd>
+          </div>
+          <div>
+            <dt>赠金余额</dt>
+            <dd id="dsBonus">—</dd>
+          </div>
+          <div>
+            <dt>消费金额（CNY）</dt>
+            <dd id="dsSpend">—</dd>
+          </div>
+        </dl>
+
+        <div class="spark" aria-hidden="true">
+          <svg id="dsSpark" viewBox="0 0 240 56" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="dsFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#8dc6ff" stop-opacity=".32"/>
+                <stop offset="1" stop-color="#8dc6ff" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="dsStroke" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#7fb6ff"/>
+                <stop offset="1" stop-color="#c9b5ff"/>
+              </linearGradient>
+            </defs>
+            <path id="dsArea" fill="url(#dsFill)" d=""></path>
+            <path id="dsLine" fill="none" stroke="url(#dsStroke)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d=""></path>
+            <circle id="dsPoint" r="3" fill="#dbeaff" stroke="#4f7fd9" stroke-width="2" opacity="0"></circle>
+          </svg>
+          <div class="spark-legend"><span>近 7 天消费</span><span id="dsSparkTotal">—</span></div>
+        </div>
+
+        <p class="card-note"><span class="note-dot" aria-hidden="true"></span><span id="dsNote">正在查询余额…</span><a class="note-link" href="https://platform.deepseek.com/usage" target="_blank" rel="noreferrer noopener" title="查看 DeepSeek 平台消费明细">近 30 天<svg class="mini-icon" aria-hidden="true"><use href="#i-arrow"></use></svg></a></p>
+      </article>
+
+      <!-- 设备电量 -->
+      <article class="card card--devices" data-reveal style="--i:1" aria-labelledby="devicesTitle">
+        <header class="card-head">
+          <div class="card-id">
+            <span class="avatar"><img src="assets/avatar-battery.svg" alt="" width="46" height="46"></span>
+            <div class="card-title">
+              <p class="eyebrow">Battery Sync</p>
+              <h2 id="devicesTitle">设备电量</h2>
+            </div>
+          </div>
+          <span class="chip" id="devicesChip">同步中</span>
+        </header>
+
+        <ul class="device-list" id="deviceList">
+          <li class="device" data-level="86" data-icon="phone">
+            <span class="device-glyph"><svg aria-hidden="true"><use href="#i-phone"></use></svg></span>
+            <div class="device-main">
+              <div class="device-top"><span class="device-name">iPhone 17 Pro</span><span class="device-pct">—%</span></div>
+              <div class="device-meter"><span></span></div>
+            </div>
+            <span class="device-state">等待同步</span>
+          </li>
+          <li class="device" data-level="64" data-icon="phone">
+            <span class="device-glyph"><svg aria-hidden="true"><use href="#i-phone"></use></svg></span>
+            <div class="device-main">
+              <div class="device-top"><span class="device-name">Samsung S25 Ultra</span><span class="device-pct">—%</span></div>
+              <div class="device-meter"><span></span></div>
+            </div>
+            <span class="device-state">等待同步</span>
+          </li>
+          <li class="device" data-level="92" data-icon="tablet">
+            <span class="device-glyph"><svg aria-hidden="true"><use href="#i-tablet"></use></svg></span>
+            <div class="device-main">
+              <div class="device-top"><span class="device-name">iPad Pro 11-inch</span><span class="device-pct">—%</span></div>
+              <div class="device-meter"><span></span></div>
+            </div>
+            <span class="device-state">等待同步</span>
+          </li>
+          <li class="device" data-level="41" data-icon="watch">
+            <span class="device-glyph"><svg aria-hidden="true"><use href="#i-watch"></use></svg></span>
+            <div class="device-main">
+              <div class="device-top"><span class="device-name">Apple Watch S10</span><span class="device-pct">—%</span></div>
+              <div class="device-meter"><span></span></div>
+            </div>
+            <span class="device-state">等待同步</span>
+          </li>
+        </ul>
+
+        <p class="card-note"><span class="note-dot" aria-hidden="true"></span><span id="devicesNote">正在等待设备回传…</span></p>
+      </article>
+
+      <!-- Codex -->
+      <article class="card card--codex" data-reveal style="--i:2" aria-labelledby="codexTitle">
+        <header class="card-head">
+          <div class="card-id">
+            <span class="avatar"><img src="assets/avatar-codex.svg" alt="" width="46" height="46"></span>
+            <div class="card-title">
+              <p class="eyebrow">Quota Remaining</p>
+              <h2 id="codexTitle">Codex</h2>
+            </div>
+          </div>
+          <span class="chip" id="codexChip">读取中</span>
+        </header>
+
+        <div class="quota">
+          <div class="ring" id="codexRing" style="--p:0">
+            <div class="ring-inner">
+              <span class="ring-value" id="codexValue">—<small>%</small></span>
+            </div>
+          </div>
+          <div class="quota-copy">
+            <p class="quota-label">剩余额度</p>
+            <p class="quota-sub" id="codexReset">每周额度 · 周日重置</p>
+          </div>
+        </div>
+
+        <div class="token-bars" id="tokenBars" aria-hidden="true"></div>
+        <p class="card-note"><span class="note-dot note-dot--lilac" aria-hidden="true"></span><span id="codexNote">Token 活动正在读取…</span></p>
+      </article>
+
+      <!-- 在干嘛 -->
+      <section class="card card--doing" data-reveal style="--i:3" aria-labelledby="doingTitle">
+        <header class="section-head">
+          <h2 class="image-heading" id="doingTitle">
+            <img src="assets/heading-whatdoing.svg" alt="" width="38" height="38">
+            <span>在干嘛</span>
+          </h2>
+          <span class="chip chip--live"><span class="live-dot" aria-hidden="true"></span><span id="workState">工作中</span></span>
+        </header>
+
+        <div class="doing-grid">
+          <div class="countdown-block">
+            <p class="eyebrow" id="countdownLabel">距离快乐下班还有</p>
+            <p class="countdown" id="offCountdown" aria-live="off">00:00:00</p>
+            <p class="quote" id="quoteText">工位可以控住你的肉体，但控不住你的灵魂</p>
+
+            <div class="week-rhythm">
+              <div class="week-rhythm-head">
+                <span>本周节奏</span>
+                <span id="weekRange">—</span>
+              </div>
+              <div class="week-days" id="weekDays" aria-label="本周工作日安排"></div>
+            </div>
+
+            <div class="doing-meta">
+              <span><i>工作制</i><b id="restModeLabel">双休</b></span>
+              <span><i>本周工作日</i><b id="weekWorkdays">5 天</b></span>
+              <span><i>本月剩余工作日</i><b id="monthWorkdays">—</b></span>
+            </div>
+
+            <div class="progress">
+              <div class="progress-head">
+                <span>今日工作进度</span>
+                <strong id="workProgressText">0%</strong>
+              </div>
+              <div class="progress-track" role="progressbar" aria-label="今日工作进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="workProgressBarWrap">
+                <span id="workProgressBar" style="width:0%"></span>
+              </div>
+              <div class="progress-foot">
+                <span><span id="workStartLabel">08:30</span> 上班</span>
+                <span><span id="workEndLabel">17:00</span> 下班</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="doing-side">
+            <div class="day-ring" id="dayRing" style="--p:0">
+              <div class="day-ring-inner">
+                <span class="day-month" id="dayMonth">—</span>
+                <span class="day-num" id="dayNum">—</span>
+                <span class="day-week" id="dayWeek">—</span>
+              </div>
+            </div>
+
+            <div class="holiday">
+              <p class="holiday-label">距离放假还有</p>
+              <p class="holiday-value"><strong id="holidayDays">—</strong><span>天</span></p>
+              <p class="holiday-name" id="holidayName">正在核对节假日…</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 持仓 · 行情 -->
+      <section class="card card--holdings" data-reveal style="--i:4" aria-labelledby="holdingsTitle">
+        <header class="section-head section-head--tight">
+          <h2 class="image-heading" id="holdingsTitle">
+            <img src="assets/heading-holdings.svg" alt="" width="38" height="38">
+            <span>持仓 · 行情</span>
+          </h2>
+          <p class="sync" id="marketSync">正在同步行情…</p>
+        </header>
+
+        <div class="ticker-grid">
+          <article class="ticker" data-symbol="QQQM">
+            <header class="ticker-head">
+              <div>
+                <h3 class="ticker-symbol">QQQM</h3>
+                <p class="ticker-name">纳指 100 ETF</p>
+              </div>
+              <span class="change" id="qqqmChange">—</span>
+            </header>
+            <p class="ticker-price"><span class="cur">$</span><span id="qqqmPrice">—</span></p>
+            <dl class="ticker-stats">
+              <div><dt>昨收</dt><dd id="qqqmPrev">—</dd></div>
+              <div><dt>振幅</dt><dd id="qqqmAmp">—</dd></div>
+              <div><dt>成交</dt><dd id="qqqmVol">—</dd></div>
+            </dl>
+            <div class="ticker-chart" aria-hidden="true">
+              <svg id="qqqmChart" viewBox="0 0 240 44" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="qqqmFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#8fe3d5" stop-opacity=".26"/>
+                    <stop offset="1" stop-color="#8fe3d5" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path class="chart-area" fill="url(#qqqmFill)" d=""></path>
+                <path class="chart-line" fill="none" stroke="#8fe3d5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d=""></path>
+              </svg>
+            </div>
+          </article>
+
+          <article class="ticker" data-symbol="VOO">
+            <header class="ticker-head">
+              <div>
+                <h3 class="ticker-symbol">VOO</h3>
+                <p class="ticker-name">标普 500 ETF</p>
+              </div>
+              <span class="change down" id="vooChange">—</span>
+            </header>
+            <p class="ticker-price"><span class="cur">$</span><span id="vooPrice">—</span></p>
+            <dl class="ticker-stats">
+              <div><dt>昨收</dt><dd id="vooPrev">—</dd></div>
+              <div><dt>振幅</dt><dd id="vooAmp">—</dd></div>
+              <div><dt>成交</dt><dd id="vooVol">—</dd></div>
+            </dl>
+            <div class="ticker-chart" aria-hidden="true">
+              <svg id="vooChart" viewBox="0 0 240 44" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="vooFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ff9ec7" stop-opacity=".24"/>
+                    <stop offset="1" stop-color="#ff9ec7" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path class="chart-area" fill="url(#vooFill)" d=""></path>
+                <path class="chart-line" fill="none" stroke="#ff9ec7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d=""></path>
+              </svg>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <nav class="foot-links" aria-label="站点链接">
+        <a class="foot-link" href="https://soki.moe/" target="_blank" rel="noreferrer noopener">
+          <svg class="foot-icon" aria-hidden="true"><use href="#i-blog"></use></svg>
+          <span><b>博客</b>soki.moe</span>
+        </a>
+        <a class="foot-link" href="https://github.com/users/SokiSama/projects" target="_blank" rel="noreferrer noopener">
+          <svg class="foot-icon" aria-hidden="true"><use href="#i-github"></use></svg>
+          <span><b>项目</b>SokiSama · GitHub Projects</span>
+        </a>
+        <a class="foot-link" href="#top">
+          <svg class="foot-icon" aria-hidden="true"><use href="#i-home"></use></svg>
+          <span><b>我的家</b></span>
+        </a>
+        <a class="foot-link" href="https://soki.moe/about" target="_blank" rel="noreferrer noopener">
+          <svg class="foot-icon" aria-hidden="true"><use href="#i-user"></use></svg>
+          <span><b>关于</b></span>
+        </a>
+        <button class="foot-link foot-link--button" id="footerSettingsBtn" type="button">
+          <svg class="foot-icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+          <span><b>我的仪表盘</b>自定义</span>
+        </button>
+      </nav>
+      <p class="copyright">
+        Copyright © <span id="copyrightYear">2026</span> Soki · Made by Soki
+        <span class="demo-tag" id="dataModeTag" title="页面当前的数据来源状态">DEMO · 演示数据</span>
+      </p>
+    </footer>
+  </div>
+
+  <!-- 加密实时数据解锁 -->
+  <div class="live-gate" id="liveGate" hidden>
+    <div class="live-gate-card" role="dialog" aria-modal="true" aria-labelledby="liveGateTitle">
+      <div class="live-gate-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <rect x="5" y="10" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="15" r="1.4" fill="currentColor"/>
+        </svg>
+      </div>
+      <p class="eyebrow">Encrypted Live Data</p>
+      <h2 id="liveGateTitle">解锁实时数据</h2>
+      <p class="live-gate-copy">余额、设备电量和 Codex 数据已加密。输入你在 GitHub Secrets 中设置的 <b>LIVE_DATA_PASSPHRASE</b>。</p>
+      <form class="live-gate-form" id="liveGateForm">
+        <label class="sr-only" for="livePassphrase">数据口令</label>
+        <input class="input" id="livePassphrase" type="password" autocomplete="current-password" placeholder="数据口令" required>
+        <button class="btn btn--primary" id="liveUnlockBtn" type="submit">解锁</button>
+      </form>
+      <p class="live-gate-error" id="liveGateError" role="alert"></p>
+      <div class="live-gate-foot">
+        <span>口令只保存在当前标签页，关闭后需要重新输入。</span>
+        <button class="live-gate-later" id="liveGateLater" type="button">先用演示数据</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置抽屉 -->
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="drawer" id="settingsDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow">Preferences</p>
+        <h2 id="drawerTitle">我的仪表盘</h2>
+      </div>
+      <button class="icon-btn icon-btn--sm" id="drawerCloseBtn" type="button" aria-label="关闭设置">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg>
+      </button>
+    </header>
+
+    <form class="drawer-form" id="settingsForm" novalidate>
+      <div class="drawer-body">
+        <div class="field">
+        <label for="optSiteName">主页名称</label>
+        <input class="input" id="optSiteName" name="siteName" type="text" maxlength="28" autocomplete="off" placeholder="Soki Sugar Life">
+      </div>
+
+      <div class="field">
+        <span class="field-label">外观主题</span>
+        <div class="segmented" role="radiogroup" aria-label="外观主题">
+          <label class="segment">
+            <input type="radio" name="theme" value="dark">
+            <span>深色</span>
+          </label>
+          <label class="segment">
+            <input type="radio" name="theme" value="light">
+            <span>浅色</span>
+          </label>
+          <label class="segment">
+            <input type="radio" name="theme" value="auto">
+            <span>自动</span>
+          </label>
+        </div>
+        <p class="field-hint">「自动」会跟随系统的浅色 / 深色偏好。</p>
+      </div>
+
+      <div class="field bg-section" id="bgSection">
+        <div class="bg-head">
+          <span class="field-label">自定义背景</span>
+          <span class="bg-head-meta">
+            <span class="bg-live">即时生效</span>
+            <span class="bg-count" id="bgCount">0 张</span>
+          </span>
+        </div>
+
+        <div class="bg-drop" id="bgDrop">
+          <input id="bgInput" type="file" accept="image/*" multiple hidden>
+          <button class="bg-add" id="bgAddBtn" type="button">
+            <svg class="bg-add-icon" aria-hidden="true"><use href="#i-image"></use></svg>
+            <span id="bgAddLabel">添加图片</span>
+          </button>
+          <p>点击选择，或把图片拖到这里</p>
+          <p class="bg-drop-note">JPG / PNG / WebP · 单张 ≤25MB · 最多 24 张 · 自动压缩，仅保存在本机</p>
+        </div>
+
+        <ul class="bg-grid" id="bgGrid" aria-label="已添加的背景图片"></ul>
+        <p class="field-hint" id="bgHint">还没有背景图片。添加两张以上后，刷新页面会自动换图。</p>
+
+        <div class="switch-row">
+          <div class="switch-copy">
+            <label for="optBgEnabled">使用自定义背景</label>
+            <small>覆盖默认极光背景，可叠加遮罩保持可读性</small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="optBgEnabled" name="bgEnabled">
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="sr-only">使用自定义背景</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field-label">切换方式</span>
+          <div class="segmented segmented--2" role="radiogroup" aria-label="背景切换方式">
+            <label class="segment">
+              <input type="radio" name="bgOrder" value="sequential">
+              <span>按顺序</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="bgOrder" value="random">
+              <span>随机</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="optBgInterval">自动切换间隔</label>
+          <div class="select-wrap">
+            <select class="input" id="optBgInterval" name="bgInterval">
+              <option value="1">1 分钟</option>
+              <option value="5">5 分钟</option>
+              <option value="10">10 分钟</option>
+              <option value="30">30 分钟</option>
+              <option value="60">60 分钟</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <div class="switch-copy">
+            <label for="optBgTheme">跟随图片自动取色</label>
+            <small>提取图片主色，只调整强调色，不改动深色 / 浅色基色</small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="optBgTheme" name="bgTheme">
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="sr-only">跟随图片自动取色</span>
+          </label>
+        </div>
+
+        <div class="palette-strip" id="bgPalette" hidden>
+          <span class="palette-label">图片取色</span>
+          <span class="swatch" data-swatch="0"></span>
+          <span class="swatch" data-swatch="1"></span>
+          <span class="swatch" data-swatch="2"></span>
+          <span class="swatch" data-swatch="3"></span>
+          <span class="palette-note">只改强调色</span>
+        </div>
+
+        <div class="field">
+          <label for="optBgOverlay">背景遮罩 <output id="bgOverlayOutput" for="optBgOverlay">50%</output></label>
+          <div class="range-row">
+            <span class="range-edge">0%</span>
+            <input id="optBgOverlay" name="bgOverlay" type="range" min="0" max="80" step="5" value="50">
+            <span class="range-edge">80%</span>
+          </div>
+        </div>
+
+        <p class="field-hint bg-note">背景设置即时生效并自动保存。每次重新打开页面会先换一张图，停留期间按间隔继续切换。</p>
+      </div>
+
+      <div class="field">
+        <span class="field-label">工作时间</span>
+        <div class="field-row">
+          <label class="sr-only" for="optWorkStart">上班时间</label>
+          <div class="input-wrap">
+            <span class="input-prefix">上班</span>
+            <input class="input" id="optWorkStart" name="workStart" type="time" required>
+          </div>
+          <label class="sr-only" for="optWorkEnd">下班时间</label>
+          <div class="input-wrap">
+            <span class="input-prefix">下班</span>
+            <input class="input" id="optWorkEnd" name="workEnd" type="time" required>
+          </div>
+        </div>
+      </div>
+
+      <fieldset class="field choice-field">
+        <legend>休息安排</legend>
+        <div class="choice-grid">
+          <label class="choice">
+            <input type="radio" name="restMode" value="double" id="optRestDouble">
+            <span class="choice-copy"><b>我双休</b><small>周六、周日休息，跟随节假日调休</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="restMode" value="single" id="optRestSingle">
+            <span class="choice-copy"><b>我单休</b><small>周日休息，跟随节假日调休</small></span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="optBlogUrl">博客地址</label>
+        <input class="input" id="optBlogUrl" name="blogUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://soki.moe/">
+      </div>
+
+      <div class="field">
+        <label for="optGithubUrl">GitHub 地址</label>
+        <input class="input" id="optGithubUrl" name="githubUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://github.com/SokiSama">
+      </div>
+
+      <div class="field">
+        <label for="optAlpha">卡片不透明度 <output id="alphaOutput" for="optAlpha">80%</output></label>
+        <div class="range-row">
+          <span class="range-edge">40%</span>
+          <input id="optAlpha" name="alpha" type="range" min="40" max="100" step="5" value="80">
+          <span class="range-edge">100%</span>
+        </div>
+      </div>
+
+      <div class="switch-row">
+        <div class="switch-copy">
+          <label for="optDancer">我不是舞蒙痴！</label>
+          <small>打开后，页面会多一点点飘落的星光</small>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="optDancer" name="dancer">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span class="sr-only">我不是舞蒙痴</span>
+        </label>
+      </div>
+
+      <div class="switch-row">
+        <div class="switch-copy">
+          <label for="optNoMotion">关闭加载与切换动画</label>
+          <small>对晕动敏感或偏好简洁时开启</small>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="optNoMotion" name="noMotion">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span class="sr-only">关闭加载与切换动画</span>
+        </label>
+      </div>
+
+      <p class="form-note">时间按北京时间（UTC+8）计算。设置仅保存在当前浏览器。</p>
+      </div>
+
+      <div class="drawer-foot">
+        <div class="form-actions">
+          <button class="btn btn--primary" type="submit">保存设置</button>
+          <button class="btn btn--ghost" type="button" id="resetBtn">恢复默认</button>
+        </div>
+      </div>
+    </form>
+  </aside>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="noscript">这个仪表盘需要 JavaScript 才能读取时间与本地设置。</div>
+  </noscript>
+
+  <script src="js/data.js" defer></script>
+  <script src="js/backgrounds.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>

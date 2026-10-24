@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+
+# 真实数据接入时不要提交密钥和运行数据
+.env
+.env.*
+!.env.example
+data/
+assets/live.enc.json
