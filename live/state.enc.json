@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "alg": "AES-256-GCM",
+  "kdf": "PBKDF2-SHA256",
+  "iterations": 150000,
+  "salt": "GMlhcEb0yojBwPGnoaFDjA==",
+  "iv": "JjXQOrntAqv1o0ea",
+  "data": "baMR7lAd0vRIMox3G4kc+HNdpzzffg2YLVfnwNsYHFXM0vbnqNtvs4RMGTz8kkxP1Qjce7yIStlHDoVUJV+kguI090lkl7tKlQ9Dibp2lYTHtqaTojZtR/bpbCaqlmevLmRxvHV8Bk53sn9tnUDVHvAOyS96wJP9Vc9zZJHkCBxeRmRF7pfJsMcmK1+ib5PsBLqlXBuxK8dbjSG1jC+xrdqtuXcfLeZP8lO0cgsDKzA6qHyBmiLpEaSx7gxDPv8UmhdwYEz8IWDmbHnOi3HIG/7wfLDFNq3EQLnqCqKXWKrBQLMoyRujgYzQK7MS5SJan04cLPEpX8rsktel1ygIR3Hgo/jakm7XoHWS+U5gUNW76TkckAj2wE85EIvhLZbUXCiknNLn3IjKcg8SVIe7/lLY04ssywV+uaQxbkjDfHG2D2nlbBTzuH3fFYJgOgOVgq1MnXa6TeTKfobXps6T9EcpzYIqaqaNTPC/Oa5Go/SuWufG/hKTGUJ5Lnaw2oqSfldoV/K3jPEtd3w=",
+  "createdAt": "2026-10-24T04:37:07.391Z"
+}
