@@ -2051,6 +2051,121 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted);
 }
 
+.sync-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0 10px;
+  padding: 12px 13px;
+  border-radius: 13px;
+  border: 1px solid rgba(143, 227, 213, 0.14);
+  background: rgba(143, 227, 213, 0.045);
+}
+
+.sync-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--faint);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.03);
+}
+
+.sync-dot.is-on {
+  background: var(--mint);
+  box-shadow: 0 0 0 3px rgba(143, 227, 213, 0.12), 0 0 12px rgba(143, 227, 213, 0.4);
+}
+
+.sync-dot.is-warn {
+  background: var(--gold);
+  box-shadow: 0 0 0 3px rgba(255, 208, 138, 0.1), 0 0 12px rgba(255, 208, 138, 0.3);
+}
+
+.sync-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sync-copy strong {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.sync-copy small {
+  font-size: 8.5px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+.auto-save-note {
+  min-height: 16px;
+  margin: 0 0 2px;
+  font-size: 8.5px;
+  line-height: 1.5;
+  color: var(--mint);
+}
+
+.auto-save-note.is-pending {
+  color: var(--muted);
+}
+
+.auto-save-note.is-local {
+  color: var(--gold);
+}
+
+.auto-save-note.is-error {
+  color: var(--pink);
+}
+
+.icon-btn:disabled,
+.foot-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-btn:disabled:hover {
+  color: var(--text-2);
+  border-color: var(--stroke);
+  background: rgba(20, 14, 31, 0.6);
+  transform: none;
+}
+
+.foot-link:disabled:hover {
+  color: var(--muted);
+  border-color: var(--stroke);
+  background: transparent;
+  transform: none;
+}
+
+html[data-theme="light"] .sync-card {
+  border-color: rgba(47, 156, 142, 0.16);
+  background: rgba(47, 156, 142, 0.055);
+}
+
+html[data-theme="light"] .sync-copy strong {
+  color: var(--text);
+}
+
+html[data-theme="light"] .auto-save-note {
+  color: #1f7f72;
+}
+
+html[data-theme="light"] .auto-save-note.is-local {
+  color: #9a6a1c;
+}
+
+html[data-theme="light"] .auto-save-note.is-error {
+  color: #b03570;
+}
+
+html[data-theme="light"] .icon-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .form-actions {
   display: flex;
   gap: 10px;

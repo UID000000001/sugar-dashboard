@@ -147,11 +147,11 @@
           <span class="clock-meta"><span id="clockDate">正在校准时间</span><span class="dot-sep" aria-hidden="true">·</span><span class="clock-theme">水光</span></span>
         </div>
         <div class="topbar-actions">
-          <button class="icon-btn theme-btn" id="themeBtn" type="button" aria-label="切换到浅色模式" title="切换到浅色模式">
+          <button class="icon-btn theme-btn" id="themeBtn" type="button" disabled aria-disabled="true" aria-label="解锁实时数据后可修改设置" title="解锁实时数据后可修改设置">
             <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
             <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg>
           </button>
-          <button class="icon-btn" id="settingsBtn" type="button" aria-label="打开我的仪表盘设置" aria-haspopup="dialog" aria-controls="settingsDrawer">
+          <button class="icon-btn" id="settingsBtn" type="button" disabled aria-disabled="true" aria-label="解锁实时数据后可打开我的仪表盘设置" aria-haspopup="dialog" aria-controls="settingsDrawer" title="解锁实时数据后可修改设置">
             <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
           </button>
         </div>
@@ -446,7 +446,7 @@
           <svg class="foot-icon" aria-hidden="true"><use href="#i-user"></use></svg>
           <span><b>关于</b></span>
         </a>
-        <button class="foot-link foot-link--button" id="footerSettingsBtn" type="button">
+        <button class="foot-link foot-link--button" id="footerSettingsBtn" type="button" disabled aria-disabled="true" title="解锁实时数据后可修改设置">
           <svg class="foot-icon" aria-hidden="true"><use href="#i-settings"></use></svg>
           <span><b>我的仪表盘</b>自定义</span>
         </button>
@@ -499,6 +499,16 @@
 
     <form class="drawer-form" id="settingsForm" novalidate>
       <div class="drawer-body">
+        <div class="sync-card" id="settingsSyncCard">
+          <span class="sync-dot" id="settingsSyncDot" aria-hidden="true"></span>
+          <div class="sync-copy">
+            <strong id="settingsSyncTitle">跨设备同步</strong>
+            <small id="settingsSyncHint">解锁实时数据后可用。</small>
+          </div>
+        </div>
+
+        <p class="auto-save-note" id="settingsSaveState" role="status" aria-live="polite">修改会自动保存</p>
+
         <div class="field">
         <label for="optSiteName">主页名称</label>
         <input class="input" id="optSiteName" name="siteName" type="text" maxlength="28" autocomplete="off" placeholder="Soki Sugar Life">
@@ -690,12 +700,12 @@
         </label>
       </div>
 
-      <p class="form-note">时间按北京时间（UTC+8）计算。设置仅保存在当前浏览器。</p>
+      <p class="form-note">时间按北京时间（UTC+8）计算。设置会跨设备同步；自定义背景图片仍只保存在当前设备。</p>
       </div>
 
       <div class="drawer-foot">
         <div class="form-actions">
-          <button class="btn btn--primary" type="submit">保存设置</button>
+          <button class="btn btn--primary" type="submit">完成</button>
           <button class="btn btn--ghost" type="button" id="resetBtn">恢复默认</button>
         </div>
       </div>

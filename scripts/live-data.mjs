@@ -83,17 +83,21 @@ async function readJson(filePath) {
 
 async function loadState() {
   const file = await readJson(STATE_PATH);
-  if (!file) return { devices: {}, codex: null };
+  if (!file) return { devices: {}, codex: null, settings: null };
 
   try {
     const state = decrypt(file);
     return {
       devices: state && typeof state.devices === "object" ? state.devices : {},
       codex: state?.codex || null,
+      settings:
+        state?.settings && typeof state.settings === "object"
+          ? state.settings
+          : null,
     };
   } catch (error) {
     console.warn("encrypted state 无法解密，本轮按空状态处理");
-    return { devices: {}, codex: null };
+    return { devices: {}, codex: null, settings: null };
   }
 }
 
@@ -102,6 +106,68 @@ function cleanText(value, maxLength = 60) {
     .replace(/[\u0000-\u001f]/g, "")
     .trim()
     .slice(0, maxLength);
+}
+
+function cleanUrl(value) {
+  const text = cleanText(value, 300);
+  if (!text) return "";
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch (error) {
+    return null;
+  }
+}
+
+function sanitizeSettingsPayload(input) {
+  if (!input || typeof input !== "object") return null;
+
+  const siteName = cleanText(input.siteName, 28);
+  if (!siteName) return null;
+
+  const workStart = cleanText(input.workStart, 5);
+  const workEnd = cleanText(input.workEnd, 5);
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(workStart)) return null;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(workEnd)) return null;
+  if (workStart === workEnd) return null;
+  if (input.restMode !== "single" && input.restMode !== "double") return null;
+  if (!["dark", "light", "auto"].includes(input.theme)) return null;
+
+  const blogUrl = cleanUrl(input.blogUrl);
+  const githubUrl = cleanUrl(input.githubUrl);
+  if (blogUrl === null || githubUrl === null) return null;
+
+  const alpha = Number(input.alpha);
+  const bgInterval = Number(input.bgInterval);
+  const bgOverlay = Number(input.bgOverlay);
+
+  if (!Number.isFinite(alpha)) return null;
+  if (![1, 5, 10, 30, 60].includes(bgInterval)) return null;
+  if (!Number.isFinite(bgOverlay)) return null;
+  if (input.bgOrder !== "sequential" && input.bgOrder !== "random") return null;
+
+  return {
+    siteName,
+    workStart,
+    workEnd,
+    restMode: input.restMode,
+    theme: input.theme,
+    blogUrl,
+    githubUrl,
+    alpha: Math.round(Math.min(100, Math.max(40, alpha)) / 5) * 5,
+    dancer: Boolean(input.dancer),
+    noMotion: Boolean(input.noMotion),
+    bgEnabled: Boolean(input.bgEnabled),
+    bgOrder: input.bgOrder,
+    bgInterval,
+    bgTheme: Boolean(input.bgTheme),
+    bgOverlay: Math.round(Math.min(80, Math.max(0, bgOverlay)) / 5) * 5,
+    updatedAt:
+      Number.isFinite(Number(input.updatedAt)) && Number(input.updatedAt) > 0
+        ? Math.floor(Number(input.updatedAt))
+        : Date.now(),
+  };
 }
 
 function applyDispatch(state, event) {
@@ -153,6 +219,16 @@ function applyDispatch(state, event) {
       dailyTokens,
       updatedAt: new Date().toISOString(),
     };
+    return true;
+  }
+
+  if (type === "settings") {
+    const settings = sanitizeSettingsPayload(payload.settings);
+    if (!settings) {
+      console.warn("忽略无效的设置同步");
+      return false;
+    }
+    state.settings = settings;
     return true;
   }
 
@@ -447,6 +523,9 @@ async function main() {
 
   const live = {
     updatedAt: new Date().toISOString(),
+    repo: process.env.GITHUB_REPOSITORY || "",
+    settings: state.settings || null,
+    settingsSyncToken: (process.env.SETTINGS_SYNC_TOKEN || "").trim(),
     deepseek,
     devices: buildDevices(state),
     codex: state.codex
@@ -472,7 +551,10 @@ async function main() {
   console.log(
     `LIVE_OK: deepseek=${deepseek.available ? "yes" : "no"} ` +
       `symbols=${market.symbols.length} devices=${live.devices.length} ` +
-      `codex=${live.codex.available ? "yes" : "no"} stateChanged=${stateChanged}`
+      `codex=${live.codex.available ? "yes" : "no"} ` +
+      `settings=${live.settings ? "yes" : "no"} ` +
+      `syncToken=${live.settingsSyncToken ? "yes" : "no"} ` +
+      `stateChanged=${stateChanged}`
   );
 }
 

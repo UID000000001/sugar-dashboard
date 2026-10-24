@@ -7,7 +7,7 @@ on:
     - cron: "*/30 * * * *"
   workflow_dispatch:
   repository_dispatch:
-    types: [battery, codex]
+    types: [battery, codex, settings]
 
 permissions:
   contents: write
@@ -38,6 +38,7 @@ jobs:
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           LIVE_DATA_PASSPHRASE: ${{ secrets.LIVE_DATA_PASSPHRASE }}
+          SETTINGS_SYNC_TOKEN: ${{ secrets.SETTINGS_SYNC_TOKEN }}
         run: node scripts/live-data.mjs
 
       - name: Persist encrypted device / Codex state

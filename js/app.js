@@ -34,6 +34,7 @@
     bgInterval: 10,
     bgTheme: true,
     bgOverlay: 50,
+    updatedAt: 0,
   });
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -132,9 +133,17 @@
     bgThemeInput: $("#optBgTheme"),
     bgOverlayInput: $("#optBgOverlay"),
     bgOverlayOutput: $("#bgOverlayOutput"),
+    settingsSaveState: $("#settingsSaveState"),
+    settingsSyncCard: $("#settingsSyncCard"),
+    settingsSyncDot: $("#settingsSyncDot"),
+    settingsSyncTitle: $("#settingsSyncTitle"),
+    settingsSyncHint: $("#settingsSyncHint"),
   };
 
   let settings = { ...DEFAULTS, ...loadStoredSettings() };
+  if (!Number.isFinite(Number(settings.updatedAt)) || Number(settings.updatedAt) < 0) {
+    settings.updatedAt = 0;
+  }
   let drawerOpen = false;
   let formDirty = false;
   let lastFocus = null;
@@ -144,6 +153,11 @@
   let toastTimer = 0;
   let themeTimer = 0;
   let demoStarted = false;
+  let applyingRemoteSettings = false;
+  let formSaveTimer = 0;
+  let settingsSyncTimer = 0;
+  let settingsSyncBusy = false;
+  let settingsSyncQueued = false;
 
   const systemThemeQuery =
     window.matchMedia && window.matchMedia("(prefers-color-scheme: light)");
@@ -156,6 +170,10 @@
     updatedAt: "",
     pollTimer: 0,
     busy: false,
+    syncToken: "",
+    repo: "",
+    lastSettingsSyncAt: 0,
+    settingsSeedAttempted: false,
   };
 
   const bgState = {
@@ -235,16 +253,32 @@
       output.bgOverlay = clamp(Math.round(overlay / 5) * 5, 0, 80);
     }
 
+    const updatedAt = Number(input.updatedAt);
+    if (Number.isFinite(updatedAt) && updatedAt > 0) {
+      output.updatedAt = Math.floor(updatedAt);
+    }
+
     return output;
   }
 
-  function storeSettings() {
+  function storeSettings(options = {}) {
+    const touch = options.touch !== false;
+
+    if (touch && !applyingRemoteSettings) {
+      settings.updatedAt = Date.now();
+    }
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      return true;
     } catch (error) {
       return false;
     }
+
+    if (touch && !applyingRemoteSettings) {
+      scheduleSettingsSync();
+    }
+
+    return true;
   }
 
   function isTimeString(value) {
@@ -998,6 +1032,7 @@
     liveState.mode = "demo";
     setDataModeTag("demo");
     if (els.serviceSub) els.serviceSub.textContent = "服务运行正常";
+    updateSettingsAccess();
     startDemoSequence();
   }
 
@@ -1018,8 +1053,20 @@
     liveState.payload = payload;
     liveState.updatedAt = payload.updatedAt || new Date().toISOString();
     liveState.mode = "live";
+    liveState.syncToken =
+      typeof payload.settingsSyncToken === "string" ? payload.settingsSyncToken : "";
+    liveState.repo =
+      typeof payload.repo === "string" && payload.repo.includes("/")
+        ? payload.repo.trim()
+        : deriveSyncRepo();
     setDataModeTag("live");
     if (els.serviceSub) els.serviceSub.textContent = "实时数据已解锁";
+
+    if (payload.settings) applyRemoteSettings(payload.settings);
+    else if (canSyncSettings() && !liveState.settingsSeedAttempted) {
+      liveState.settingsSeedAttempted = true;
+      scheduleSettingsSync();
+    }
 
     const deepseek = payload.deepseek;
     if (deepseek && deepseek.available) {
@@ -1076,6 +1123,8 @@
     } else if (els.marketSync) {
       els.marketSync.textContent = "行情暂不可用";
     }
+
+    updateSettingsAccess();
   }
 
   async function unlockLiveData(passphrase) {
@@ -1678,11 +1727,6 @@
       bgState.loaded = true;
       records.forEach(ensureBackgroundUrls);
 
-      if (!records.length && settings.bgEnabled) {
-        settings.bgEnabled = false;
-        storeSettings();
-      }
-
       renderBackgroundManager();
 
       if (settings.bgEnabled && records.length) {
@@ -1869,6 +1913,11 @@
   }
 
   function toggleTheme() {
+    if (liveState.mode !== "live") {
+      showToast("解锁实时数据后才能修改设置");
+      return;
+    }
+
     const next = resolveTheme(settings.theme) === "light" ? "dark" : "light";
     settings.theme = next;
     storeSettings();
@@ -1988,15 +2037,285 @@
   }
 
   /* ---------------------------------------------------------
+     设置自动保存 / 跨设备同步
+     --------------------------------------------------------- */
+
+  function deriveSyncRepo() {
+    if (
+      DATA.sync &&
+      typeof DATA.sync.repo === "string" &&
+      DATA.sync.repo.includes("/")
+    ) {
+      return DATA.sync.repo.trim();
+    }
+
+    const host = window.location.hostname;
+    if (host.endsWith(".github.io")) {
+      const owner = host.slice(0, -".github.io".length);
+      const repo = window.location.pathname.split("/").filter(Boolean)[0];
+      if (owner && repo) return `${owner}/${repo}`;
+    }
+
+    return "";
+  }
+
+  function getSyncRepo() {
+    const repo = String(liveState.repo || deriveSyncRepo() || "").trim();
+    return /^[^/\s]+\/[^/\s]+$/.test(repo) ? repo : "";
+  }
+
+  function canSyncSettings() {
+    return (
+      liveState.mode === "live" &&
+      Boolean(liveState.syncToken) &&
+      Boolean(getSyncRepo())
+    );
+  }
+
+  function settingsForSync() {
+    return {
+      siteName: settings.siteName,
+      workStart: settings.workStart,
+      workEnd: settings.workEnd,
+      restMode: settings.restMode,
+      theme: settings.theme,
+      blogUrl: settings.blogUrl,
+      githubUrl: settings.githubUrl,
+      alpha: settings.alpha,
+      dancer: Boolean(settings.dancer),
+      noMotion: Boolean(settings.noMotion),
+      bgEnabled: Boolean(settings.bgEnabled),
+      bgOrder: settings.bgOrder,
+      bgInterval: settings.bgInterval,
+      bgTheme: Boolean(settings.bgTheme),
+      bgOverlay: settings.bgOverlay,
+      updatedAt: Number(settings.updatedAt) || 0,
+    };
+  }
+
+  function setSaveState(message, state = "saved") {
+    if (!els.settingsSaveState) return;
+    els.settingsSaveState.textContent = message;
+    els.settingsSaveState.classList.toggle("is-pending", state === "pending");
+    els.settingsSaveState.classList.toggle("is-local", state === "local");
+    els.settingsSaveState.classList.toggle("is-error", state === "error");
+  }
+
+  function updateSyncCard() {
+    if (!els.settingsSyncTitle) return;
+
+    const unlocked = liveState.mode === "live";
+    const hasToken = Boolean(liveState.syncToken);
+    const repo = getSyncRepo();
+    const dot = els.settingsSyncDot;
+    dot?.classList.remove("is-on", "is-warn");
+
+    if (!unlocked) {
+      els.settingsSyncTitle.textContent = "跨设备同步";
+      els.settingsSyncHint.textContent = "解锁实时数据后启用。";
+      return;
+    }
+
+    if (!hasToken || !repo) {
+      els.settingsSyncTitle.textContent = "仅本机自动保存";
+      els.settingsSyncHint.textContent =
+        "在仓库 Secrets 添加 SETTINGS_SYNC_TOKEN 后开启跨设备同步。";
+      dot?.classList.add("is-warn");
+      return;
+    }
+
+    els.settingsSyncTitle.textContent = "跨设备同步已开启";
+    els.settingsSyncHint.textContent =
+      "修改会自动加密同步；背景图片仍只保存在当前设备。";
+    dot?.classList.add("is-on");
+  }
+
+  function scheduleSettingsSync() {
+    if (!canSyncSettings()) {
+      updateSyncCard();
+      return;
+    }
+
+    window.clearTimeout(settingsSyncTimer);
+    settingsSyncTimer = window.setTimeout(syncSettingsNow, 900);
+  }
+
+  async function syncSettingsNow() {
+    if (!canSyncSettings()) return;
+
+    if (settingsSyncBusy) {
+      settingsSyncQueued = true;
+      return;
+    }
+
+    settingsSyncBusy = true;
+    settingsSyncQueued = false;
+    const repo = getSyncRepo();
+    const payload = settingsForSync();
+    setSaveState("正在同步到云端…", "pending");
+
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${repo}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${liveState.syncToken}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          body: JSON.stringify({
+            event_type: "settings",
+            client_payload: { settings: payload },
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      liveState.lastSettingsSyncAt = Date.now();
+      setSaveState(`已同步 · ${clockStamp(getNow())}`, "saved");
+      updateSyncCard();
+    } catch (error) {
+      setSaveState("本机已保存；云端同步失败，稍后会再试", "error");
+      updateSyncCard();
+    } finally {
+      settingsSyncBusy = false;
+      if (settingsSyncQueued) {
+        settingsSyncQueued = false;
+        scheduleSettingsSync();
+      }
+    }
+  }
+
+  function applyRemoteSettings(remote) {
+    if (!remote || typeof remote !== "object") return false;
+
+    const normalized = sanitizeSettings(remote);
+    const remoteAt = Number(normalized.updatedAt) || 0;
+    const localAt = Number(settings.updatedAt) || 0;
+
+    if (remoteAt <= localAt) {
+      if (canSyncSettings() && localAt > remoteAt) scheduleSettingsSync();
+      return false;
+    }
+
+    applyingRemoteSettings = true;
+    settings = { ...settings, ...normalized, updatedAt: remoteAt };
+    storeSettings({ touch: false });
+    applyingRemoteSettings = false;
+
+    applySettings(false);
+    if (drawerOpen) fillForm();
+    tick();
+    renderHoliday(getNow());
+    renderDayRing(getNow(), true);
+    setSaveState(`已从云端同步 · ${clockStamp(getNow())}`, "saved");
+    updateSyncCard();
+    return true;
+  }
+
+  function updateSettingsAccess() {
+    const unlocked = liveState.mode === "live";
+    const buttons = [els.themeBtn, els.settingsBtn, els.footerSettingsBtn];
+
+    buttons.forEach((button) => {
+      if (!button) return;
+      button.disabled = !unlocked;
+      button.setAttribute("aria-disabled", String(!unlocked));
+    });
+
+    if (unlocked) {
+      if (els.settingsBtn) {
+        els.settingsBtn.setAttribute("aria-label", "打开我的仪表盘设置");
+        els.settingsBtn.title = "打开我的仪表盘设置";
+      }
+      if (els.footerSettingsBtn) {
+        els.footerSettingsBtn.title = "打开我的仪表盘设置";
+      }
+      applyTheme(settings.theme, false);
+    } else {
+      if (els.themeBtn) {
+        els.themeBtn.setAttribute("aria-label", "解锁实时数据后可修改设置");
+        els.themeBtn.title = "解锁实时数据后可修改设置";
+      }
+      if (els.settingsBtn) {
+        els.settingsBtn.setAttribute(
+          "aria-label",
+          "解锁实时数据后可打开我的仪表盘设置"
+        );
+        els.settingsBtn.title = "解锁实时数据后可修改设置";
+      }
+      if (els.footerSettingsBtn) {
+        els.footerSettingsBtn.title = "解锁实时数据后可修改设置";
+      }
+      if (drawerOpen) closeDrawer();
+    }
+
+    document.body.classList.toggle("settings-locked", !unlocked);
+    updateSyncCard();
+  }
+
+  function saveFormSettings() {
+    if (liveState.mode !== "live") return false;
+
+    const values = readForm();
+    const error = validateSettings(values);
+    if (error) {
+      setSaveState(`未保存：${error}`, "error");
+      return false;
+    }
+
+    settings = { ...settings, ...values };
+    const stored = storeSettings();
+    formDirty = false;
+    applySettings(false);
+    tick();
+    renderHoliday(getNow());
+    renderDayRing(getNow(), true);
+    setSaveState(
+      stored ? `已自动保存 · ${clockStamp(getNow())}` : "浏览器拒绝了本地保存",
+      stored ? "saved" : "error"
+    );
+    return stored;
+  }
+
+  function queueFormAutoSave() {
+    if (liveState.mode !== "live") return;
+    formDirty = true;
+    window.clearTimeout(formSaveTimer);
+    setSaveState("编辑中…", "pending");
+    formSaveTimer = window.setTimeout(() => {
+      formSaveTimer = 0;
+      saveFormSettings();
+    }, 700);
+  }
+
+  function flushFormAutoSave() {
+    window.clearTimeout(formSaveTimer);
+    formSaveTimer = 0;
+    if (!formDirty) return true;
+    return saveFormSettings();
+  }
+
+  /* ---------------------------------------------------------
      抽屉交互
      --------------------------------------------------------- */
 
   function openDrawer() {
     if (drawerOpen) return;
+    if (liveState.mode !== "live") {
+      showToast("解锁实时数据后才能打开和修改设置");
+      return;
+    }
+
     drawerOpen = true;
     lastFocus = document.activeElement;
     formDirty = false;
     fillForm();
+    setSaveState("修改会自动保存", "saved");
+    updateSyncCard();
 
     if (els.backdrop) {
       els.backdrop.hidden = false;
@@ -2016,6 +2335,14 @@
 
   function closeDrawer() {
     if (!drawerOpen) return;
+
+    if (formDirty && liveState.mode === "live") {
+      if (!flushFormAutoSave()) {
+        showToast(els.settingsSaveState?.textContent || "设置未保存，请检查输入");
+        return;
+      }
+    }
+
     drawerOpen = false;
 
     els.drawer.classList.remove("is-open");
@@ -2033,10 +2360,7 @@
     els.drawer.setAttribute("aria-hidden", "true");
     els.drawer.removeEventListener("keydown", onDrawerKeydown);
 
-    if (formDirty) {
-      applySettings(true);
-      formDirty = false;
-    }
+    formDirty = false;
 
     window.setTimeout(() => {
       if (!drawerOpen && els.backdrop) els.backdrop.hidden = true;
@@ -2094,22 +2418,9 @@
 
     els.form?.addEventListener("submit", (event) => {
       event.preventDefault();
-      const values = readForm();
-      const error = validateSettings(values);
-      if (error) {
-        showToast(error);
-        return;
-      }
-
-      settings = { ...settings, ...values };
-      const stored = storeSettings();
-      formDirty = false;
-      applySettings(true);
+      if (!flushFormAutoSave()) return;
       closeDrawer();
-      tick();
-      renderHoliday(getNow());
-      renderDayRing(getNow(), true);
-      showToast(stored ? "设置已保存" : "设置已应用，但浏览器拒绝了本地保存");
+      showToast("设置已自动保存");
     });
 
     els.liveGateForm?.addEventListener("submit", (event) => {
@@ -2121,7 +2432,6 @@
 
     [...$$("input, select", els.form || document)].forEach((input) => {
       input.addEventListener("input", () => {
-        formDirty = true;
         if (input === els.alphaInput) {
           const value = Number(els.alphaInput.value);
           if (els.alphaOutput) els.alphaOutput.textContent = `${value}%`;
@@ -2130,9 +2440,10 @@
             (value / 100).toFixed(2)
           );
         }
+        queueFormAutoSave();
       });
       input.addEventListener("change", () => {
-        formDirty = true;
+        queueFormAutoSave();
       });
     });
 
@@ -2241,12 +2552,14 @@
     }
 
     $("#resetBtn")?.addEventListener("click", () => {
+      if (liveState.mode !== "live") return;
       fillDefaultsIntoForm();
       formDirty = true;
       const alpha = DEFAULTS.alpha;
       document.documentElement.style.setProperty("--card-alpha", (alpha / 100).toFixed(2));
       applyTheme(DEFAULTS.theme, true);
-      showToast("已填入默认值，点击「保存设置」生效");
+      saveFormSettings();
+      showToast("已恢复默认并自动保存");
     });
 
     document.addEventListener("visibilitychange", () => {
@@ -2315,13 +2628,14 @@
     window.setTimeout(setServiceOnline, 1400);
 
     const hasLiveData = await initLiveData();
+    updateSettingsAccess();
     if (!hasLiveData) {
       startDemoSequence();
     }
 
     if (
       window.location.hash === "#settings" &&
-      (!els.liveGate || els.liveGate.hidden)
+      liveState.mode === "live"
     ) {
       window.setTimeout(openDrawer, 500);
     }
